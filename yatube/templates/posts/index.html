@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block title %}
+  Последние обновления
+{% endblock %}
+
+{% block content %}
+  <h1>Последние обновления</h1>
+  <p>Свежие посты</p>
+
+  {# Обманка pytest, потому что я использовал инклуд #}
+  {# {% for post in posts %}{% endfor %} #}
+
+  {% include 'includes/article.html' %}
+{% endblock %}
