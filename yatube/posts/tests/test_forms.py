@@ -1,4 +1,4 @@
-from http import HTTPStatus
+# from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
@@ -114,16 +114,16 @@ class PostsFormsTests(TestCase):
 
     def test_fail_to_edit_other_person_post(self):
         """Тестирование невозможности редактировать чужие записи."""
-        user = User.objects.create(username='test-username2')
-        auth_other_user = self.client
-        auth_other_user.force_login(user)
-
-        response = auth_other_user.post(
+        edited_post = 'Исправленный текст'
+        response = self.guest_client.post(
             reverse('posts:post_edit', args=[self.post.pk]),
-            data=self.form_data,
-            follow=False
+            data={'text': edited_post},
         )
-        self.assertTrue(HTTPStatus.FORBIDDEN, response.status_code)
+        self.assertNotEqual(self.post.text, edited_post)
+        self.assertRedirects(
+            response, (
+                f'/auth/login/?next=/posts/{self.post.pk}/edit/')
+        )
 
     def test_post_help_text(self):
         """

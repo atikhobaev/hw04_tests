@@ -39,50 +39,35 @@ class PostURLTests(TestCase):
         self.authorized_client.force_login(self.user)
 
     # Проверяем общедоступные страницы
-    def test_url_homepage(self):
-        response = self.guest_client.get('/')
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_url_group(self):
-        """Проверка /group/test-slug/."""
-        response = self.guest_client.get('/group/test-slug/')
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_url_profile_guest(self):
-        """Проверка /profile/test-username/."""
-        response = self.guest_client.get('/profile/test-username/')
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_url_post(self):
-        """Проверка /posts/333/."""
-        response = self.guest_client.get('/posts/333/')
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_url_post_edit_guest_redirect(self):
-        """Проверка /posts/333/edit для гостя."""
-        response = self.guest_client.get('/posts/333/edit')
-        self.assertEqual(response.status_code, HTTPStatus.MOVED_PERMANENTLY)
+    def test_url_response_status_code_for_guest(self):
+        url_names_status_code = {
+            '/': HTTPStatus.OK,
+            '/group/test-slug/': HTTPStatus.OK,
+            '/profile/test-username/': HTTPStatus.OK,
+            f'/posts/{self.post.id}/': HTTPStatus.OK,
+            f'/posts/{self.post.id}/edit': HTTPStatus.MOVED_PERMANENTLY,
+            '/some-trash-link/': HTTPStatus.NOT_FOUND,
+        }
+        for url, status_code in url_names_status_code.items():
+            with self.subTest(url=url):
+                response = self.guest_client.get(url)
+                self.assertEqual(response.status_code, status_code)
 
     def test_url_create_guest_redirect(self):
         """Редирект /create/ для гостя."""
         response = self.guest_client.post('/create/')
         self.assertRedirects(response, '/auth/login/?next=/create/')
 
-    def test_url_404(self):
-        """Проверка на 404 ошибку /some-trash-link/."""
-        response = self.guest_client.get('/some-trash-link/')
-        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
-
     # Проверяем доступность страниц для авторизованного пользователя
-    def test_url_post_edit_author(self):
-        """Проверка /posts/333/edit для автора."""
-        response = self.authorized_client.get('/posts/333/edit/')
-        self.assertEqual(response.status_code, HTTPStatus.FOUND)
-
-    def test_url_create_user(self):
-        """Редирект /create/ для юзера."""
-        response = self.authorized_client.post('/create/')
-        self.assertEqual(response.status_code, HTTPStatus.OK)
+    def test_url_response_status_code_for_guest(self):
+        url_names_status_code = {
+            f'/posts/{self.post.id}/edit/': HTTPStatus.FOUND,
+            '/create/': HTTPStatus.OK,
+        }
+        for url, status_code in url_names_status_code.items():
+            with self.subTest(url=url):
+                response = self.authorized_client.get(url)
+                self.assertEqual(response.status_code, status_code)
 
     # Проверка вызываемых шаблонов для каждого адреса
     def test_urls_uses_correct_template(self):

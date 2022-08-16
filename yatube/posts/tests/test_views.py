@@ -28,9 +28,9 @@ class PostsViewsTests(TestCase):
             description='test-description',
         )
         cls.group2 = Group.objects.create(
-            title='Тестовый заголовок группы',
-            slug='test-group2-slug',
-            description='test-description',
+            title='Тестовый заголовок группы2',
+            slug='test-group-slug2',
+            description='test-description2',
         )
         # словарь для тестового поста
         cls.post_data = {
@@ -38,12 +38,14 @@ class PostsViewsTests(TestCase):
             'group': cls.group,
             'author': cls.author,
         }
+
         # тестовый пост
-        cls.post = Post.objects.create(
-            text=cls.post_data['text'],
-            group=cls.post_data['group'],
-            author=cls.post_data['author'],
-        )
+        for i in range(0, 10):
+            cls.post = Post.objects.create(
+                text=cls.post_data['text'],
+                group=cls.post_data['group'],
+                author=cls.post_data['author'],
+            )
 
     def setUp(self):
         self.user = User.objects.create_user(username='views_user')
@@ -105,22 +107,33 @@ class PostsViewsTests(TestCase):
             with self.subTest(response=response, context=context):
                 self.assertEqual(context, expected)
 
-    def test_homepage_and_profile_show_correct_contexts(self):
-        """View: index и profile получают соответствующий контекст."""
-        response_types = [
-            self.authorized_client.get(reverse('posts:index')),
-            self.authorized_client.get(
-                reverse(
-                    'posts:profile',
-                    kwargs={'username': self.author.username}
-                )
-            )
-        ]
+    def test_homepage_and_profile_show_correct_posts_contexts(self):
+        """View: index получают соответствующий контекст."""
+        response = self.authorized_client.get(reverse('posts:index'))
+        context = response.context['page_obj'].object_list[0]
+        self.assertEqual(context, self.post)
+        self.helper_contexts(response, context)
+        self.service_asserts(context)
 
-        for response in response_types:
-            context = response.context['page_obj'].object_list[0]
-            self.helper_contexts(response, context)
-            self.service_asserts(context)
+    def test_profile_show_correct_contexts(self):
+        """View: profile получает соответствующий контекст."""
+        response = self.authorized_client.get(
+            reverse(
+                'posts:profile',
+                kwargs={'username': self.author.username}
+            )
+        )
+
+        context = response.context['page_obj'].object_list[0]
+        self.assertEqual(context, self.post)
+        self.helper_contexts(response, context)
+        self.service_asserts(context)
+
+        context = response.context['author']
+        self.assertEqual(context, self.author)
+
+        context = response.context['posts_count']
+        self.assertEqual(context, self.post_data['author'].posts.count())
 
     def test_group_posts_context(self):
         """View: group_posts имеет соответствующий контекст."""
@@ -130,7 +143,14 @@ class PostsViewsTests(TestCase):
                 kwargs={'slug': self.group.slug}
             )
         )
-        self.service_asserts_group(response.context['group'])
+        context = response.context['group']
+        self.assertEqual(context, self.group)
+        self.service_asserts_group(context)
+
+        context = response.context['page_obj'].object_list[0]
+        self.assertEqual(context, self.post)
+        self.helper_contexts(response, context)
+        self.service_asserts(context)
 
     def test_post_detail_show_correct_context(self):
         """View: post_detail имеет соответствующий контекст."""
@@ -138,8 +158,14 @@ class PostsViewsTests(TestCase):
             reverse('posts:post_detail', kwargs={'post_id': self.post.id})
         )
         context = response.context['post']
-
+        self.assertEqual(context, self.post)
         self.helper_contexts(response, context)
+
+        context = response.context['author']
+        self.assertEqual(context, self.author)
+
+        context = response.context['posts_count']
+        self.assertEqual(context, self.post_data['author'].posts.count())
 
     def test_create_post_correct_context(self):
         """
@@ -156,20 +182,30 @@ class PostsViewsTests(TestCase):
             ),
         ]
 
-        for response in response_types:
-            self.assertIsInstance(
-                response.context.get('form'), PostForm
-            )
-
         form_fields = {
             'group': forms.fields.ChoiceField,
             'text': forms.fields.CharField,
         }
 
         for response in response_types:
+            if response.resolver_match.func.__name__ == 'post_create':
+                self.assertRaises(
+                    KeyError, lambda: response.context['is_edit']
+                )
+
+            if response.resolver_match.func.__name__ == 'post_edit':
+                context = response.context['post']
+                self.assertEqual(context, self.post)
+
+                context = response.context['is_edit']
+                self.assertTrue(context)
+
+            self.assertIsInstance(
+                response.context['form'], PostForm
+            )
             for value, values in form_fields.items():
                 with self.subTest(value=value):
-                    f_field = response.context.get('form').fields.get(value)
+                    f_field = response.context['form'].fields.get(value)
                     self.assertIsInstance(f_field, values)
 
     def test_new_post_appearance(self):
@@ -207,9 +243,10 @@ class PostsViewsTests(TestCase):
     def test_post_not_found(self):
         """Проверка отсутствия записи не в той группе."""
         response = self.authorized_client.get(
-            reverse('posts:group_posts', kwargs={'slug': self.group.slug})
+            reverse('posts:group_posts', kwargs={'slug': self.group2.slug})
         )
-        self.assertNotEqual(response.context['page_obj'][0].group, self.group2)
+        context = response.context['page_obj'].object_list
+        self.assertNotIn(self.post, context)
 
 
 class PaginatorViewsTest(TestCase):
