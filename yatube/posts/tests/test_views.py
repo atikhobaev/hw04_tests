@@ -189,9 +189,8 @@ class PostsViewsTests(TestCase):
 
         for response in response_types:
             if response.resolver_match.func.__name__ == 'post_create':
-                self.assertRaises(
-                    KeyError, lambda: response.context['is_edit']
-                )
+                print(response.context)
+                self.assertNotIn('is_edit', response.context)
 
             if response.resolver_match.func.__name__ == 'post_edit':
                 context = response.context['post']

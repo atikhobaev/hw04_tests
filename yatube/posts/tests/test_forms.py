@@ -1,6 +1,7 @@
 # from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -114,12 +115,13 @@ class PostsFormsTests(TestCase):
 
     def test_fail_to_edit_other_person_post(self):
         """Тестирование невозможности редактировать чужие записи."""
-        edited_post = 'Исправленный текст'
+        edited_post_before = 'Исправленный текст'
         response = self.guest_client.post(
             reverse('posts:post_edit', args=[self.post.pk]),
-            data={'text': edited_post},
+            data={'text': edited_post_before},
         )
-        self.assertNotEqual(self.post.text, edited_post)
+        edited_post_after = get_object_or_404(Post, pk=self.post.pk).text
+        self.assertNotEqual(edited_post_after, edited_post_before)
         self.assertRedirects(
             response, (
                 f'/auth/login/?next=/posts/{self.post.pk}/edit/')
